@@ -161,7 +161,11 @@ InfiniBand/RDMA adapters:
 ```
 
 **H100 node (node2901)** — 8× H100 80GB HBM3 (`10de:2330`), 4 GPUs per NUMA
-node, and 9 InfiniBand adapters (rail-per-GPU HGX layout):
+node, and 9 InfiniBand adapters (rail-per-GPU HGX layout). The even/odd NUMA
+CPU sets are real, not a firmware bug: this node numbers logical CPUs
+socket-interleaved (even CPUs = socket 0, odd = socket 1, SMT siblings 112
+apart — verified via `/sys/.../topology`), so NUMA node 0 genuinely owns the
+even CPUs:
 
 ```
 NodeName=node2901 CPUs=224 Boards=1 SocketsPerBoard=2 CoresPerSocket=56 ThreadsPerCore=2 RealMemory=2063205
