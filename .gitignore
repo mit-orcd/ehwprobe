@@ -1,2 +1,5 @@
 # Build artifact
 /ehwprobe
+
+# Slurm job output
+*.out
