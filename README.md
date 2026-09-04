@@ -48,6 +48,25 @@ make static HWLOC_CFLAGS=-I/opt/hwloc/include HWLOC_STATIC=/opt/hwloc/lib/libhwl
 ./ehwprobe --quiet                      # only the slurmd -C lines
 ```
 
+## `--parameters` / `-p`
+
+Comma-separated, case-insensitive list of topology modifiers, mirroring the
+corresponding Slurm configuration options. Unknown parameters are rejected;
+the list is echoed in the output as `Parameters=` exactly like `slurmd -C`.
+
+| Parameter | Slurm equivalent | Effect |
+|---|---|---|
+| `l3cache_as_socket` | `SlurmdParameters=l3cache_as_socket` | Count each hwloc L3 cache domain as a socket. Requires a hwloc **v2** build. |
+| `numa_node_as_socket` | `SlurmdParameters=numa_node_as_socket` | Use the NUMA nodes' parent object as the socket. Requires a hwloc **v2** build. Mutually exclusive with `l3cache_as_socket`. |
+| `ignore_numa` | `SchedulerParameters=Ignore_NUMA` | Report real sockets instead of treating each NUMA node as a socket. Effective only in hwloc **v1** builds (hwloc v2 ignores it; nohwloc builds are unaffected). |
+
+Example:
+
+```sh
+./ehwprobe --parameters=l3cache_as_socket
+./ehwprobe -p l3cache_as_socket,ignore_numa
+```
+
 ## License
 
 GPLv2+ (same as Slurm, from which this was ported). See `COPYING`.
