@@ -67,6 +67,49 @@ Example:
 ./ehwprobe -p l3cache_as_socket,ignore_numa
 ```
 
+## Example output
+
+Collected via Slurm batch jobs on MIT Engaging (see `cpu_example.slurm` and
+`gpu_example.slurm`). Long CPU lists are compacted to range notation here
+(`0-126:2` = every 2nd CPU from 0 to 126).
+
+### CPU node (`mit_quicktest`, node1600)
+
+```
+NodeName=node1600 CPUs=192 Boards=1 SocketsPerBoard=2 CoresPerSocket=48 ThreadsPerCore=2 RealMemory=385957
+UpTime=25-10:44:40
+```
+
+### GPU node (`mit_normal_gpu`, node3402, 1× L40S allocated)
+
+```
+CUDA_VISIBLE_DEVICES=0
+GPU 0: NVIDIA L40S (UUID: GPU-397589de-2032-ca80-1e35-d28f1c427f88)
+
+NodeName=node3402 CPUs=128 Boards=1 SocketsPerBoard=2 CoresPerSocket=32 ThreadsPerCore=2 RealMemory=1031051
+UpTime=29-15:50:14
+------
+NUMA nodes (memory locality):
+  NUMA[0] cpus=0-126:2  mem=515019MB
+  NUMA[1] cpus=1-127:2  mem=516032MB
+GPUs:
+  GPU[0] 10de:26b9 pci=0000:4a:00.0 numa=0 socket=- cpus=0-126:2
+  GPU[1] 10de:26b9 pci=0000:61:00.0 numa=0 socket=- cpus=0-126:2
+  GPU[2] 10de:26b9 pci=0000:ca:00.0 numa=1 socket=- cpus=1-127:2
+  GPU[3] 10de:26b9 pci=0000:e1:00.0 numa=1 socket=- cpus=1-127:2
+InfiniBand/RDMA adapters:
+  IB[0] mlx5_0 pci=0000:a0:00.0 link=InfiniBand numa=1 socket=- cpus=1-127:2
+```
+
+Notes on this output:
+
+- `10de:26b9` is the PCI vendor/device ID of the NVIDIA L40S.
+- `socket=-` means the socket is unknown — this binary was a `nohwloc`
+  (fallback) build; hwloc builds resolve the socket per the active socket
+  definition.
+- ehwprobe reports *all* hardware present on the node (4 GPUs above), while
+  Slurm only granted the job one (`CUDA_VISIBLE_DEVICES=0`).
+
 ## License
 
 GPLv2+ (same as Slurm, from which this was ported). See `COPYING`.
