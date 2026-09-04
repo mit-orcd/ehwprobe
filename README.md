@@ -70,8 +70,17 @@ Example:
 ## Example output
 
 Collected via Slurm batch jobs on MIT Engaging (see `cpu_example.slurm` and
-`gpu_example.slurm`). Long CPU lists are compacted to range notation here
-(`0-126:2` = every 2nd CPU from 0 to 126).
+`gpu_example.slurm`).
+
+The tool itself always prints full comma-separated CPU lists (like `lscpu`
+does). In the examples below, long lists are compacted for readability using
+Slurm hostlist-style range notation:
+
+```
+0-15         contiguous range:  0,1,2,...,15
+0-222:2      stepped range:     every 2nd CPU from 0 to 222 (0,2,4,...,222)
+0-15,32-47   union of ranges:   0-15 and 32-47
+```
 
 ### CPU node (`mit_quicktest`, node1600)
 
@@ -104,9 +113,11 @@ InfiniBand/RDMA adapters:
 Notes on this output:
 
 - `10de:26b9` is the PCI vendor/device ID of the NVIDIA L40S.
-- `socket=-` means the socket is unknown — this binary was a `nohwloc`
-  (fallback) build; hwloc builds resolve the socket per the active socket
-  definition.
+- `socket=-` means the socket is unknown — these examples were made with a
+  `nohwloc` (fallback) build. With hwloc compiled in, the socket is resolved
+  per the active socket definition; on node2901 the same report then shows
+  `socket=0` for GPU[0-3]/IB[0-3] and `socket=1` for GPU[4-7]/IB[4-8],
+  consistent with the `numa=` values.
 - ehwprobe reports *all* hardware present on the node (4 GPUs above), while
   Slurm only granted the job one (`CUDA_VISIBLE_DEVICES=0`).
 
