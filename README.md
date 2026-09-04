@@ -110,6 +110,87 @@ Notes on this output:
 - ehwprobe reports *all* hardware present on the node (4 GPUs above), while
   Slurm only granted the job one (`CUDA_VISIBLE_DEVICES=0`).
 
+### Preemptable GPU nodes (`mit_preemptable`)
+
+Same script, with the partition and GPU type overridden on the command line:
+
+```sh
+sbatch -p mit_preemptable --gres=gpu:a100:1 -J gpu_a100 -o gpu_a100_%j.out gpu_example.slurm
+sbatch -p mit_preemptable --gres=gpu:h100:1 -J gpu_h100 -o gpu_h100_%j.out gpu_example.slurm
+sbatch -p mit_preemptable --gres=gpu:h200:1 -J gpu_h200 -o gpu_h200_%j.out gpu_example.slurm
+```
+
+**A100 node (node1463)** — 4× A100-SXM4-80GB (`10de:20b2`); note the 8 NUMA
+domains (AMD, NPS4-style) and that the GPUs sit on the odd domains 1/3/5/7:
+
+```
+NodeName=node1463 CPUs=128 Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore=1 RealMemory=515047
+------
+NUMA nodes (memory locality):
+  NUMA[0] cpus=0-15     mem=63557MB
+  NUMA[1] cpus=16-31    mem=64506MB
+  NUMA[2] cpus=32-47    mem=64506MB
+  NUMA[3] cpus=48-63    mem=64494MB
+  NUMA[4] cpus=64-79    mem=64506MB
+  NUMA[5] cpus=80-95    mem=64506MB
+  NUMA[6] cpus=96-111   mem=64506MB
+  NUMA[7] cpus=112-127  mem=64461MB
+GPUs:
+  GPU[0] 10de:20b2 pci=0000:01:00.0 numa=3 socket=- cpus=48-63
+  GPU[1] 10de:20b2 pci=0000:41:00.0 numa=1 socket=- cpus=16-31
+  GPU[2] 10de:20b2 pci=0000:81:00.0 numa=7 socket=- cpus=112-127
+  GPU[3] 10de:20b2 pci=0000:c1:00.0 numa=5 socket=- cpus=80-95
+InfiniBand/RDMA adapters:
+  IB[0] mlx5_0 pci=0000:63:00.0 link=Ethernet   numa=0 socket=- cpus=0-15
+  IB[1] mlx5_1 pci=0000:63:00.1 link=Ethernet   numa=0 socket=- cpus=0-15
+  IB[2] mlx5_2 pci=0000:a1:00.0 link=InfiniBand numa=6 socket=- cpus=96-111
+```
+
+**H100 node (node2901)** — 8× H100 80GB HBM3 (`10de:2330`), 4 GPUs per NUMA
+node, and 9 InfiniBand adapters (rail-per-GPU HGX layout):
+
+```
+NodeName=node2901 CPUs=224 Boards=1 SocketsPerBoard=2 CoresPerSocket=56 ThreadsPerCore=2 RealMemory=2063205
+------
+NUMA nodes (memory locality):
+  NUMA[0] cpus=0-222:2  mem=1031099MB
+  NUMA[1] cpus=1-223:2  mem=1032106MB
+GPUs:
+  GPU[0] 10de:2330 pci=0000:19:00.0 numa=0 socket=- cpus=0-222:2
+  GPU[1] 10de:2330 pci=0000:3b:00.0 numa=0 socket=- cpus=0-222:2
+  GPU[2] 10de:2330 pci=0000:4c:00.0 numa=0 socket=- cpus=0-222:2
+  GPU[3] 10de:2330 pci=0000:5d:00.0 numa=0 socket=- cpus=0-222:2
+  GPU[4] 10de:2330 pci=0000:9b:00.0 numa=1 socket=- cpus=1-223:2
+  GPU[5] 10de:2330 pci=0000:bb:00.0 numa=1 socket=- cpus=1-223:2
+  GPU[6] 10de:2330 pci=0000:cb:00.0 numa=1 socket=- cpus=1-223:2
+  GPU[7] 10de:2330 pci=0000:db:00.0 numa=1 socket=- cpus=1-223:2
+InfiniBand/RDMA adapters:
+  IB[0] mlx5_0 pci=0000:1a:00.0 link=InfiniBand numa=0 socket=- cpus=0-222:2
+  IB[1] mlx5_1 pci=0000:3c:00.0 link=InfiniBand numa=0 socket=- cpus=0-222:2
+  IB[2] mlx5_2 pci=0000:4d:00.0 link=InfiniBand numa=0 socket=- cpus=0-222:2
+  IB[3] mlx5_3 pci=0000:5e:00.0 link=InfiniBand numa=0 socket=- cpus=0-222:2
+  IB[4] mlx5_4 pci=0000:9c:00.0 link=InfiniBand numa=1 socket=- cpus=1-223:2
+  IB[5] mlx5_5 pci=0000:9d:00.0 link=InfiniBand numa=1 socket=- cpus=1-223:2
+  IB[6] mlx5_6 pci=0000:bc:00.0 link=InfiniBand numa=1 socket=- cpus=1-223:2
+  IB[7] mlx5_7 pci=0000:cc:00.0 link=InfiniBand numa=1 socket=- cpus=1-223:2
+  IB[8] mlx5_8 pci=0000:dc:00.0 link=InfiniBand numa=1 socket=- cpus=1-223:2
+```
+
+**H200 node (node5105)** — 2× H200 NVL (`10de:233b`), one GPU per NUMA node:
+
+```
+NodeName=node5105 CPUs=64 Boards=1 SocketsPerBoard=2 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=772552
+------
+NUMA nodes (memory locality):
+  NUMA[0] cpus=0-15,32-47   mem=386078MB
+  NUMA[1] cpus=16-31,48-63  mem=386473MB
+GPUs:
+  GPU[0] 10de:233b pci=0000:89:00.0 numa=0 socket=- cpus=0-15,32-47
+  GPU[1] 10de:233b pci=0001:c5:00.0 numa=1 socket=- cpus=16-31,48-63
+InfiniBand/RDMA adapters:
+  IB[0] mlx5_0 pci=0001:3f:00.0 link=InfiniBand numa=1 socket=- cpus=16-31,48-63
+```
+
 ## License
 
 GPLv2+ (same as Slurm, from which this was ported). See `COPYING`.
