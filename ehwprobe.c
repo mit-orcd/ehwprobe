@@ -50,6 +50,25 @@
  * GRES GPU autodetection.
  *
  * Slurm is free software (GPLv2+); this port keeps that license.
+ *
+ * Original copyright notices retained per GPLv2:
+ *   from src/slurmd/common/xcpuinfo.c:
+ *     Copyright (C) 2009 CEA/DAM/DIF
+ *     Portions (hwloc) copyright (C) 2012 Bull, <rod.schultz@bull.com>
+ *     Written by Matthieu Hautreux <matthieu.hautreux@cea.fr>
+ *   from src/slurmd/slurmd/get_mach_stat.c:
+ *     Copyright (C) 2006 Hewlett-Packard Development Company, L.P.
+ *     Copyright (C) 2002-2006 The Regents of the University of California.
+ *     Written by Morris Jette <jette1@llnl.gov>
+ *
+ * Modified 2026-09: rewritten as the standalone ehwprobe tool with all
+ * Slurm dependencies removed; changes are described above and marked
+ * with "NOTE:" throughout the code.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version. See the included file COPYING.
 \*****************************************************************************/
 
 #define _GNU_SOURCE

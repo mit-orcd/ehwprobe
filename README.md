@@ -50,4 +50,5 @@ make static HWLOC_CFLAGS=-I/opt/hwloc/include HWLOC_STATIC=/opt/hwloc/lib/libhwl
 
 ## License
 
-GPLv2+ (same as Slurm, from which this was ported).
+GPLv2+ (same as Slurm, from which this was ported). See `COPYING`.
+Original copyright notices are retained in the `ehwprobe.c` header.
