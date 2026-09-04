@@ -42,10 +42,10 @@ make static HWLOC_CFLAGS=-I/opt/hwloc/include HWLOC_STATIC=/opt/hwloc/lib/libhwl
 ## Run
 
 ```sh
-./xcpuinfo                              # same output as slurmd -C, plus locality report
-./xcpuinfo --parameters=l3cache_as_socket
-./xcpuinfo --map --verbose
-./xcpuinfo --quiet                      # only the slurmd -C lines
+./ehwprobe                              # same output as slurmd -C, plus locality report
+./ehwprobe --parameters=l3cache_as_socket
+./ehwprobe --map --verbose
+./ehwprobe --quiet                      # only the slurmd -C lines
 ```
 
 ## License

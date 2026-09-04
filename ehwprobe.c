@@ -1,5 +1,5 @@
 /*****************************************************************************\
- * xcpuinfo.c - standalone CPU topology probe ported from Slurm
+ * ehwprobe.c - standalone CPU topology probe ported from Slurm
  *
  * Independent reimplementation of the topology detection logic in Slurm's
  * src/slurmd/common/xcpuinfo.c (verified identical between master and the
@@ -16,11 +16,11 @@
  *   make nohwloc        # force the /proc/cpuinfo fallback parser
  *
  * Run:
- *   ./xcpuinfo                              # same output as: slurmd -C,
+ *   ./ehwprobe                              # same output as: slurmd -C,
  *                                           # plus GPU/IB/NUMA locality report
- *   ./xcpuinfo --parameters=l3cache_as_socket
- *   ./xcpuinfo --map --verbose
- *   ./xcpuinfo --quiet                      # only the slurmd -C lines
+ *   ./ehwprobe --parameters=l3cache_as_socket
+ *   ./ehwprobe --map --verbose
+ *   ./ehwprobe --quiet                      # only the slurmd -C lines
  *
  * Beyond slurmd -C, the tool reports (when present):
  *   - NUMA nodes with their CPU sets and local memory (memory locality)

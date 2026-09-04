@@ -1,4 +1,4 @@
-# Standalone port of Slurm's xcpuinfo topology detection.
+# ehwprobe: standalone port of Slurm's xcpuinfo topology detection.
 #
 #   make            build with hwloc support if available (like Slurm)
 #   make nohwloc    force the /proc/cpuinfo fallback parser
@@ -34,7 +34,7 @@ HAVE_HWLOC   := 1
 HWLOC_LIBS   := -lhwloc
 endif
 
-xcpuinfo: xcpuinfo.c
+ehwprobe: ehwprobe.c
 ifeq ($(HAVE_HWLOC),1)
 	$(CC) $(CFLAGS) -DHAVE_HWLOC $(HWLOC_CFLAGS) -o $@ $< $(HWLOC_LIBS)
 else
@@ -42,16 +42,16 @@ else
 	$(CC) $(CFLAGS) -o $@ $<
 endif
 
-nohwloc: xcpuinfo.c
-	$(CC) $(CFLAGS) -o xcpuinfo $<
+nohwloc: ehwprobe.c
+	$(CC) $(CFLAGS) -o ehwprobe $<
 
-static: xcpuinfo.c
+static: ehwprobe.c
 	@test -n "$(HWLOC_STATIC)" || { \
 		echo "usage: make static HWLOC_CFLAGS=-I<hwloc>/include HWLOC_STATIC=<hwloc>/lib/libhwloc.a"; \
 		exit 1; }
-	$(CC) $(CFLAGS) -DHAVE_HWLOC $(HWLOC_CFLAGS) -o xcpuinfo $< $(HWLOC_STATIC) -lm
+	$(CC) $(CFLAGS) -DHAVE_HWLOC $(HWLOC_CFLAGS) -o ehwprobe $< $(HWLOC_STATIC) -lm
 
 clean:
-	rm -f xcpuinfo
+	rm -f ehwprobe
 
 .PHONY: nohwloc static clean
