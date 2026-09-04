@@ -102,6 +102,7 @@ static bool opt_ignore_numa        = false;	/* Ignore_NUMA        */
 static bool opt_map                = false;
 static bool opt_verbose            = false;
 static bool opt_quiet              = false;	/* only slurmd -C lines */
+static bool opt_list               = false;	/* full cpu lists, not ranges */
 static char *opt_parameters        = NULL;	/* echoed like slurmd -C */
 
 /*
@@ -1386,6 +1387,129 @@ static void collect_devices_sys(void)
 	}
 }
 
+/*
+ * CPU list formatting for the locality report.
+ * Collected lists may be kernel cpulists ("0-15,32-47"), hwloc lists
+ * ("0,1,2,...") or stepped ranges ("0-222:2"); all are parsed into a
+ * bitmap and re-emitted either as compact Slurm hostlist-style ranges
+ * (default, -r/--ranges) or as a full comma-separated list (-l/--list).
+ */
+#define FMT_MAX_CPUS 16384
+
+/* parse a cpu list ("0-15,32-47", "0,2,4", "0-222:2") into a bitmap */
+static void cpulist_parse(const char *s, uint64_t *bits, int nbits)
+{
+	memset(bits, 0, nbits / 8);
+	while (s && *s) {
+		unsigned long a, b, step = 1, v;
+		char *end;
+
+		a = strtoul(s, &end, 10);
+		if (end == s)
+			break;	/* not a number: stop */
+		b = a;
+		s = end;
+		if (*s == '-') {
+			b = strtoul(s + 1, &end, 10);
+			s = end;
+			if (*s == ':') {	/* stepped range a-b:s */
+				step = strtoul(s + 1, &end, 10);
+				if (step < 1)
+					step = 1;
+				s = end;
+			}
+		}
+		for (v = a; v <= b && v < (unsigned long) nbits; v += step)
+			bits[v / 64] |= 1ULL << (v % 64);
+		while (*s && *s != ',')
+			s++;
+		if (*s == ',')
+			s++;
+	}
+}
+
+/* emit set bits as compact ranges: 0-15, 0-222:2 (step), 0-15,32-47 */
+static void bitmap_fmt_ranges(char *buf, size_t len, const uint64_t *bits,
+			      int nbits)
+{
+	size_t off = 0;
+	int cpu = -1, i;
+
+	buf[0] = '\0';
+	for (;;) {
+		int start, prev, step, run;
+
+		for (i = cpu + 1;
+		     (i < nbits) && !(bits[i / 64] & (1ULL << (i % 64))); i++)
+			;
+		if (i >= nbits)
+			break;
+		start = prev = i;
+
+		/* extend an arithmetic run while the step stays constant */
+		step = -1;
+		run = 1;
+		for (i = prev + 1; i < nbits; i++) {
+			if (!(bits[i / 64] & (1ULL << (i % 64))))
+				continue;
+			if (step < 0)
+				step = i - prev;
+			else if (i - prev != step)
+				break;	/* bit i starts the next run */
+			prev = i;
+			run++;
+		}
+
+		if (off < len) {
+			if (run == 1)
+				off += snprintf(buf + off, len - off,
+						"%s%d", off ? "," : "", start);
+			else if ((run == 2) && (step > 1))
+				off += snprintf(buf + off, len - off,
+						"%s%d,%d", off ? "," : "",
+						start, prev);
+			else if (step == 1)
+				off += snprintf(buf + off, len - off,
+						"%s%d-%d", off ? "," : "",
+						start, prev);
+			else
+				off += snprintf(buf + off, len - off,
+						"%s%d-%d:%d", off ? "," : "",
+						start, prev, step);
+		}
+		cpu = prev;
+	}
+}
+
+/* emit set bits as a full comma-separated list (lscpu style) */
+static void bitmap_fmt_list(char *buf, size_t len, const uint64_t *bits,
+			    int nbits)
+{
+	size_t off = 0;
+
+	buf[0] = '\0';
+	for (int i = 0; i < nbits; i++)
+		if ((bits[i / 64] & (1ULL << (i % 64))) && (off < len))
+			off += snprintf(buf + off, len - off, "%s%d",
+					off ? "," : "", i);
+}
+
+/* format a collected cpu list per --ranges (default) / --list */
+static void fmt_cpus(char *out, size_t len, const char *cpus)
+{
+	uint64_t bits[FMT_MAX_CPUS / 64];
+
+	if (!cpus || !*cpus) {
+		out[0] = '\0';
+		return;
+	}
+	cpulist_parse(cpus, bits, FMT_MAX_CPUS);
+	if (opt_list)
+		bitmap_fmt_list(out, len, bits, FMT_MAX_CPUS);
+	else
+		bitmap_fmt_ranges(out, len, bits, FMT_MAX_CPUS);
+}
+
 static const char *int_or_dash(int v, char *buf)
 {
 	if (v < 0)
@@ -1415,6 +1539,7 @@ static int cmp_dev_name(const void *a, const void *b)
 static void print_device_report(void)
 {
 	char sbuf[16];
+	char cbuf[MAX_CPUSET_STR];
 
 	/* deterministic order regardless of enumeration source */
 	if (numa_report_cnt > 1)
@@ -1433,37 +1558,43 @@ static void print_device_report(void)
 
 	if (numa_report_cnt) {
 		printf("NUMA nodes (memory locality):\n");
-		for (int i = 0; i < numa_report_cnt; i++)
+		for (int i = 0; i < numa_report_cnt; i++) {
+			fmt_cpus(cbuf, sizeof(cbuf), numa_report[i].cpus);
 			printf("  NUMA[%d] cpus=%s mem=%" PRIu64 "MB\n",
-			       numa_report[i].os_index, numa_report[i].cpus,
+			       numa_report[i].os_index, cbuf,
 			       numa_report[i].mem_mb);
+		}
 	} else {
 		printf("NUMA nodes: none detected\n");
 	}
 
 	if (gpu_report_cnt) {
 		printf("GPUs:\n");
-		for (int i = 0; i < gpu_report_cnt; i++)
+		for (int i = 0; i < gpu_report_cnt; i++) {
+			fmt_cpus(cbuf, sizeof(cbuf), gpu_report[i].cpus);
 			printf("  GPU[%d] %s pci=%s numa=%s socket=%s cpus=%s\n",
 			       i, gpu_report[i].name, gpu_report[i].bdf,
 			       int_or_dash(gpu_report[i].numa, sbuf),
 			       gpu_report[i].socket[0] ?
 			       gpu_report[i].socket : "-",
-			       gpu_report[i].cpus);
+			       cbuf);
+		}
 	} else {
 		printf("GPUs: none detected\n");
 	}
 
 	if (ib_report_cnt) {
 		printf("InfiniBand/RDMA adapters:\n");
-		for (int i = 0; i < ib_report_cnt; i++)
+		for (int i = 0; i < ib_report_cnt; i++) {
+			fmt_cpus(cbuf, sizeof(cbuf), ib_report[i].cpus);
 			printf("  IB[%d] %s pci=%s link=%s numa=%s socket=%s cpus=%s\n",
 			       i, ib_report[i].name, ib_report[i].bdf,
 			       ib_report[i].link[0] ? ib_report[i].link : "-",
 			       int_or_dash(ib_report[i].numa, sbuf),
 			       ib_report[i].socket[0] ?
 			       ib_report[i].socket : "-",
-			       ib_report[i].cpus);
+			       cbuf);
+		}
 	} else {
 		printf("InfiniBand adapters: none detected\n");
 	}
@@ -1482,7 +1613,7 @@ static void print_block_map(uint16_t cpus, uint16_t *block_map,
 
 static void usage(char *prog)
 {
-	printf("Usage: %s [-C] [-p <list>] [-m] [-v] [-h]\n"
+	printf("Usage: %s [-C] [-p <list>] [-l|-r] [-m] [-q] [-v] [-h]\n"
 	       "\n"
 	       "Print the node CPU topology exactly as Slurm's slurmd would\n"
 	       "detect it (port of src/slurmd/common/xcpuinfo.c). Output\n"
@@ -1497,6 +1628,10 @@ static void usage(char *prog)
 	       "                            numa_node_as_socket - use NUMA parent as\n"
 	       "                              socket (hwloc v2 only)\n"
 	       "                            ignore_numa - Ignore_NUMA (hwloc v1 only)\n"
+	       "  -r, --ranges            print CPU sets as compact ranges\n"
+	       "                          (default): 0-15, 0-222:2, 0-15,32-47\n"
+	       "  -l, --list              print full comma-separated CPU lists\n"
+	       "                          (like lscpu)\n"
 	       "  -m, --map               also print the abstract<->physical\n"
 	       "                          block distribution map\n"
 	       "  -q, --quiet             only print the slurmd -C lines (suppress\n"
@@ -1518,6 +1653,8 @@ int main(int argc, char **argv)
 	static struct option long_opts[] = {
 		{ "check",      no_argument,       NULL, 'C' },
 		{ "parameters", required_argument, NULL, 'p' },
+		{ "ranges",     no_argument,       NULL, 'r' },
+		{ "list",       no_argument,       NULL, 'l' },
 		{ "map",        no_argument,       NULL, 'm' },
 		{ "quiet",      no_argument,       NULL, 'q' },
 		{ "verbose",    no_argument,       NULL, 'v' },
@@ -1532,7 +1669,7 @@ int main(int argc, char **argv)
 	char name[128];
 	int c;
 
-	while ((c = getopt_long(argc, argv, "Cp:mqvh", long_opts, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "Cp:rlmqvh", long_opts, NULL)) != -1) {
 		switch (c) {
 		case 'C':
 			break;	/* default action, like slurmd -C */
@@ -1554,6 +1691,12 @@ int main(int argc, char **argv)
 			}
 			break;
 		}
+		case 'r':
+			opt_list = false;
+			break;
+		case 'l':
+			opt_list = true;
+			break;
 		case 'm':
 			opt_map = true;
 			break;

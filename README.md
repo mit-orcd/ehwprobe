@@ -46,6 +46,7 @@ make static HWLOC_CFLAGS=-I/opt/hwloc/include HWLOC_STATIC=/opt/hwloc/lib/libhwl
 ./ehwprobe --parameters=l3cache_as_socket
 ./ehwprobe --map --verbose
 ./ehwprobe --quiet                      # only the slurmd -C lines
+./ehwprobe --list                       # full lscpu-style CPU lists (default: compact ranges)
 ```
 
 ## `--parameters` / `-p`
@@ -72,15 +73,17 @@ Example:
 Collected via Slurm batch jobs on MIT Engaging (see `cpu_example.slurm` and
 `gpu_example.slurm`).
 
-The tool itself always prints full comma-separated CPU lists (like `lscpu`
-does). In the examples below, long lists are compacted for readability using
-Slurm hostlist-style range notation:
+CPU sets are printed as compact ranges by default (Slurm hostlist-style
+notation); `-l`/`--list` switches to full comma-separated lists (like
+`lscpu`), `-r`/`--ranges` forces the default:
 
 ```
 0-15         contiguous range:  0,1,2,...,15
 0-222:2      stepped range:     every 2nd CPU from 0 to 222 (0,2,4,...,222)
 0-15,32-47   union of ranges:   0-15 and 32-47
 ```
+
+The examples below show the default compact form.
 
 ### CPU node (`mit_quicktest`, node1600)
 
